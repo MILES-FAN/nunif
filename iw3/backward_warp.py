@@ -163,7 +163,7 @@ def apply_divergence_nn(
         preserve_screen_border=False,
         enable_amp=True,
 ):
-    if model.name == "sbs.mlbw":
+    if getattr(model, "name", None) == "sbs.mlbw":
         return apply_divergence_nn_delta_weight(
             model, c, depth,
             divergence=divergence,

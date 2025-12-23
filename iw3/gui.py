@@ -332,6 +332,7 @@ class MainFrame(wx.Frame):
                      "Cross Eyed",
                      "RGB-D",
                      "Half RGB-D",
+                     "C1",
                      "Anaglyph",
                      "Export", "Export disparity",
                      "Debug Depth",
@@ -1104,6 +1105,7 @@ class MainFrame(wx.Frame):
         cross_eyed = self.cbo_stereo_format.GetValue() == "Cross Eyed"
         rgbd = self.cbo_stereo_format.GetValue() == "RGB-D"
         half_rgbd = self.cbo_stereo_format.GetValue() == "Half RGB-D"
+        c_one = self.cbo_stereo_format.GetValue() == "C1"
         anaglyph = self.get_anaglyph_method()
         export = self.cbo_stereo_format.GetValue() == "Export"
         export_disparity = self.cbo_stereo_format.GetValue() == "Export disparity"
@@ -1222,6 +1224,7 @@ class MainFrame(wx.Frame):
             cross_eyed=cross_eyed,
             rgbd=rgbd,
             half_rgbd=half_rgbd,
+            c_one=c_one,
             anaglyph=anaglyph,
 
             export=export,

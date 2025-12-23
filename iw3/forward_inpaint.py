@@ -233,6 +233,8 @@ class ForwardInpaintVideo(nn.Module):
 
 
 class ForwardInpaint(nn.Module):
+    name = "sbs.forward_inpaint"
+
     def __init__(self, name, device_id):
         super().__init__()
         self.device = create_device(device_id)

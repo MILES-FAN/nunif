@@ -85,6 +85,7 @@ HALF_TB_SUFFIX = "_TB"
 CROSS_EYED_SUFFIX = "_RLF_cross"
 RGBD_SUFFIX = "_RGBD"  # TODO
 HALF_RGBD_SUFFIX = "_HRGBD"  # TODO
+C_ONE_SUFFIX = "_C1"
 
 VR180_SUFFIX = "_180x180_LR"
 ANAGLYPH_SUFFIX = "_redcyan"
@@ -115,6 +116,8 @@ def make_output_filename(input_filename, args, video=False):
         auto_detect_suffix = RGBD_SUFFIX
     elif args.half_rgbd:
         auto_detect_suffix = HALF_RGBD_SUFFIX
+    elif args.c_one:
+        auto_detect_suffix = C_ONE_SUFFIX
     elif args.debug_depth:
         auto_detect_suffix = DEBUG_SUFFIX
     else:
@@ -439,6 +442,145 @@ def postprocess_image(left_eye, right_eye, args):
     return sbs
 
 
+def apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema=False):
+    if args.method in {"grid_sample", "backward"}:
+        left_eye, right_eye = apply_divergence_grid_sample(
+            im_org, depth,
+            div_val, convergence=args.convergence)
+    elif args.method in {"forward", "forward_fill"}:
+        left_eye, right_eye = apply_divergence_forward_warp(
+            im_org, depth,
+            div_val, convergence=args.convergence,
+            method=args.method)
+    elif args.method in {"forward_inpaint", "mlbw_l2_inpaint"}:
+        if args.method == "forward_inpaint":
+            depth = get_mapper(args.mapper)(depth)
+            mapper = None
+        else:
+            mapper = args.mapper
+        left_eye, right_eye = side_model.infer(
+            im_org, depth,
+            divergence=div_val, convergence=args.convergence,
+            mapper=mapper,
+            synthetic_view="both",
+            inner_dilation=args.mask_inner_dilation,
+            outer_dilation=args.mask_outer_dilation,
+            max_width=args.inpaint_max_width,
+            enable_amp=not args.disable_amp,
+        )
+    else:
+        left_eye, right_eye = apply_divergence_nn_LR(
+            side_model, im_org, depth,
+            div_val, args.convergence, args.warp_steps,
+            mapper=args.mapper,
+            enable_amp=not args.disable_amp)
+
+    if not batch:
+        left_eye = left_eye.squeeze(0)
+        right_eye = right_eye.squeeze(0)
+
+    return left_eye, right_eye
+
+
+def postprocess_image_c_one(depth, im_org, args, side_model, ema=False):
+    batch = True
+    if depth.ndim != 4:
+        # CHW
+        depth = depth.unsqueeze(0)
+        im_org = im_org.unsqueeze(0)
+        batch = False
+    else:
+        # BCHW
+        pass
+
+    if args.method in {"grid_sample", "backward"}:
+        depth = get_mapper(args.mapper)(depth)
+    elif args.method in {"forward", "forward_fill"}:
+        depth = get_mapper(args.mapper)(depth)
+    else:
+        if args.stereo_width is not None:
+            # NOTE: use src aspect ratio instead of depth aspect ratio
+            H, W = im_org.shape[2:]
+            stereo_width = min(W, args.stereo_width)
+            if depth.shape[3] != stereo_width:
+                new_w = stereo_width
+                new_h = int(H * (stereo_width / W))
+                depth = F.interpolate(depth, size=(new_h, new_w),
+                                      mode="bilinear", align_corners=True, antialias=True)
+                depth = torch.clamp(depth, 0, 1)
+
+    div_val = args.divergence
+    div_val_unit = 0.2 * args.divergence
+    div_val = 0.5 * div_val_unit
+    eye_19, eye_20 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_18, eye_21 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_17, eye_22 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_16, eye_23 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_15, eye_24 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_14, eye_25 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_13, eye_26 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_12, eye_27 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_11, eye_28 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_10, eye_29 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_9, eye_30 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_8, eye_31 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_7, eye_32 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_6, eye_33 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_5, eye_34 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_4, eye_35 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_3, eye_36 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    # div_val = 2.0*args.divergence
+    eye_2, eye_37 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    eye_1, eye_38 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+    div_val += div_val_unit
+    # div_val = 2.0*args.divergence
+    eye_0, eye_39 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
+
+    eyes = [eye_0, eye_1, eye_2, eye_3, eye_4, eye_5, eye_6, eye_7,
+            eye_8, eye_9, eye_10, eye_11, eye_12, eye_13, eye_14, eye_15,
+            eye_16, eye_17, eye_18, eye_19, eye_20, eye_21, eye_22, eye_23,
+            eye_24, eye_25, eye_26, eye_27, eye_28, eye_29, eye_30, eye_31,
+            eye_32, eye_33, eye_34, eye_35, eye_36, eye_37, eye_38, eye_39]
+
+    # Resize to 720x405 (H, W) per view for 3240x3600 (5x8) quilt
+    eyes = [TF.resize(e, (720, 405), interpolation=InterpolationMode.BICUBIC, antialias=True) for e in eyes]
+
+    h0 = torch.cat(eyes[0:8], dim=2)
+    h1 = torch.cat(eyes[8:16], dim=2)
+    h2 = torch.cat(eyes[16:24], dim=2)
+    h3 = torch.cat(eyes[24:32], dim=2)
+    h4 = torch.cat(eyes[32:40], dim=2)
+
+    # sbs = torch.cat([eye_0, eye_39], dim=2)
+    # C1
+    sbs = torch.cat([h0, h1, h2, h3, h4], dim=1)
+    # Looking Glass
+    # sbs = torch.cat([h4, h3, h2, h1, h0], dim=1)
+
+    # sbs = h0
+    sbs = torch.clamp(sbs, 0., 1.)
+
+    return sbs
+
+
 def debug_depth_image(depth, args):
     depth = depth.float()
     mean_depth, std_depth = depth.mean().item(), depth.std().item()
@@ -478,6 +620,11 @@ def process_image(x, args, depth_model, side_model, skip_autocrop=None, autocrop
             left_eye = autocrop.uncrop(left_eye)
             right_eye = autocrop.uncrop(right_eye)
             sbs = postprocess_image(left_eye, right_eye, args)
+            return sbs
+        elif args.c_one:
+            sbs = postprocess_image_c_one(depth, x, args, side_model)
+            if not isinstance(sbs, list):
+                sbs = autocrop.uncrop(sbs)
             return sbs
         else:
             while True:
@@ -582,14 +729,17 @@ def bind_single_frame_callback(depth_model, side_model, segment_pts, args):
                 left_eye, right_eye = apply_rgbd(x, depth, mapper=args.mapper)
                 out = postprocess_image(left_eye, right_eye, args)
             else:
-                left_eye, right_eye = apply_divergence(depth, x, args, side_model)
-                if left_eye is not None:
-                    if left_eye.ndim == 3:
-                        out = postprocess_image(left_eye, right_eye, args)
-                    else:
-                        out = [postprocess_image(left, right, args) for left, right in zip(left_eye, right_eye)]
+                if args.c_one:
+                    out = postprocess_image_c_one(depth, x, args, side_model)
                 else:
-                    out = None
+                    left_eye, right_eye = apply_divergence(depth, x, args, side_model)
+                    if left_eye is not None:
+                        if left_eye.ndim == 3:
+                            out = postprocess_image(left_eye, right_eye, args)
+                        else:
+                            out = [postprocess_image(left, right, args) for left, right in zip(left_eye, right_eye)]
+                    else:
+                        out = None
 
             if not isinstance(out, list):
                 if out is not None:
@@ -606,11 +756,15 @@ def bind_single_frame_callback(depth_model, side_model, segment_pts, args):
                 frames.append(VU.to_frame(o, use_16bit=use_16bit))
 
         if flush and hasattr(side_model, "flush"):
-            left_eye, right_eye = side_model.flush(enable_amp=not args.disable_amp)
-            if left_eye is not None:
-                for left, right in zip(left_eye, right_eye):
-                    out = postprocess_image(left, right, args)
-                    frames.append(VU.to_frame(out, use_16bit=use_16bit))
+            if args.c_one:
+                # TODO: C1 flush
+                pass
+            else:
+                left_eye, right_eye = side_model.flush(enable_amp=not args.disable_amp)
+                if left_eye is not None:
+                    for left, right in zip(left_eye, right_eye):
+                        out = postprocess_image(left, right, args)
+                        frames.append(VU.to_frame(out, use_16bit=use_16bit))
 
         return frames
 
@@ -884,7 +1038,10 @@ def process_video_full(input_filename, output_path, args, depth_model, side_mode
         depth_model.enable_ema(decay=args.ema_decay, buffer_size=args.ema_buffer)
 
     if side_model is not None and hasattr(side_model, "set_mode"):
-        side_model.set_mode("video")
+        if args.c_one:
+            side_model.set_mode("image")
+        else:
+            side_model.set_mode("video")
         side_model.reset()
 
     if (
@@ -1544,7 +1701,10 @@ def process_config_video(config, args, side_model):
     base_dir = path.dirname(args.input)
     rgb_dir, depth_dir, audio_file = config.resolve_paths(base_dir)
     if side_model is not None and hasattr(side_model, "set_mode"):
-        side_model.set_mode("video")
+        if args.c_one:
+            side_model.set_mode("image")
+        else:
+            side_model.set_mode("video")
         side_model.reset()
 
     if is_output_dir(args.output):
@@ -1927,6 +2087,7 @@ def create_parser(required_true=True):
     parser.add_argument("--cross-eyed", action="store_true", help="output for cross-eyed viewing")
     parser.add_argument("--rgbd", action="store_true", help="output in RGBD")
     parser.add_argument("--half-rgbd", action="store_true", help="output in Half RGBD")
+    parser.add_argument("--c-one", action="store_true", help="output C1 quilt")
 
     parser.add_argument("--pix-fmt", type=str, default="yuv420p", choices=["yuv420p", "yuv444p", "yuv420p10le", "rgb24", "gbrp", "gbrp10le", "gbrp16le"],
                         help="pixel format (video only)")
@@ -1966,8 +2127,7 @@ def create_parser(required_true=True):
                               "BLACK_TB: Removes only the top and bottom black bars. "
                               "BLACK: Automatically removes black bars from all sides. "
                               "FLAT_TB: Removes only the top and bottom flat-color borders."
-                              "FLAT: Removes flat-color borders. ",
-                              ))
+                              "FLAT: Removes flat-color borders. "))
 
     parser.add_argument("--edge-dilation", type=int, nargs="+", default=[2, 1],
                         help="loop count of edge dilation. <x> <y> or <xy>")
