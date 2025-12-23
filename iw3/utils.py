@@ -482,6 +482,23 @@ def apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch,
     return left_eye, right_eye
 
 
+
+def resize_to_fit(im, target_size):
+    h, w = im.shape[-2:]
+    target_h, target_w = target_size
+    scale = max(target_h / h, target_w / w)
+    new_h = int(h * scale)
+    new_w = int(w * scale)
+    if new_w != w or new_h != h:
+        im = TF.resize(im, (new_h, new_w), interpolation=InterpolationMode.BICUBIC, antialias=True)
+
+    if new_w != target_w or new_h != target_h:
+        i = (new_h - target_h) // 2
+        j = (new_w - target_w) // 2
+        im = TF.crop(im, i, j, target_h, target_w)
+    return im
+
+
 def postprocess_image_c_one(depth, im_org, args, side_model, ema=False):
     batch = True
     if depth.ndim != 4:
@@ -510,7 +527,7 @@ def postprocess_image_c_one(depth, im_org, args, side_model, ema=False):
                 depth = torch.clamp(depth, 0, 1)
 
     div_val = args.divergence
-    div_val_unit = 0.2 * args.divergence
+    div_val_unit = 0.25 * args.divergence
     div_val = 0.5 * div_val_unit
     eye_19, eye_20 = apply_divergence_c_one_pair(depth, im_org, args, side_model, div_val, batch, ema)
     div_val += div_val_unit
@@ -561,7 +578,7 @@ def postprocess_image_c_one(depth, im_org, args, side_model, ema=False):
             eye_32, eye_33, eye_34, eye_35, eye_36, eye_37, eye_38, eye_39]
 
     # Resize to 720x405 (H, W) per view for 3240x3600 (5x8) quilt
-    eyes = [TF.resize(e, (720, 405), interpolation=InterpolationMode.BICUBIC, antialias=True) for e in eyes]
+    eyes = [resize_to_fit(e, (720, 405)) for e in eyes]
 
     h0 = torch.cat(eyes[0:8], dim=2)
     h1 = torch.cat(eyes[8:16], dim=2)
